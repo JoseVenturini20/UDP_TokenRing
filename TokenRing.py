@@ -8,12 +8,15 @@ class TokenRing:
         threading.Thread(target=self.__receive_data).start()
         self.__configure()
         self.__queue = queue.Queue()
-        self.__temp_token_management = Temp(5)
+        self.__temp_token_management_timeout = Temp(10)
+        self.__temp_token_management_multiple_tokens = Temp(3)
         self.__temp_with_token = Temp(self.__token_time)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
         self.__ack_event = threading.Event()
         self.__last_message = None
+        if (self.__token):
+            self.__temp_with_token.start(self.__send_token)
 
     def __receive_data(self):
         while True:
@@ -28,7 +31,7 @@ class TokenRing:
             data = file.readlines()
             self.__right_ip = data[0].split(':')[0].strip()
             self.__right_port = int(data[0].split(':')[1].strip())
-            self.__right_nickname = data[1].strip()
+            self.__my_nickname = data[1].strip()
             self.__token_time = int(data[2].strip())
             self.__token = data[3].strip() == 'true'
 
@@ -43,10 +46,9 @@ class TokenRing:
         def multiple_tokens():
             remove_token()
         
-        if self.__temp_token_management.is_running():
+        if self.__temp_token_management_multiple_tokens.is_running():
             multiple_tokens()
         else: 
-            self.__temp_token_management.start(token_timeout)
             self.__is_token_holder = True
 
     def __decode_data(self, data):
@@ -98,6 +100,9 @@ class TokenRing:
 
     def __send_token(self):
         self.__is_token_holder = False
+        if (self.__token):
+            self.__temp_token_management_timeout.start(callback=self.__send_token)
+            self.__temp_token_management_multiple_tokens.start()
         self.__send(b'9000')
 
     def __enqueue_message(self, message):

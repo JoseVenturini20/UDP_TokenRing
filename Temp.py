@@ -3,6 +3,7 @@ import threading
 
 class Temp:
     def __init__(self, seconds):
+        self.init_seconds = seconds
         self.seconds = seconds
         self._thread = None
         self._stop_event = threading.Event()
@@ -14,6 +15,8 @@ class Temp:
             print(timeformat, end='\r')
             time.sleep(1)
             self.seconds -= 1
+        else:
+            self._thread = None
 
         if not self._stop_event.is_set():
             if self.callback:
@@ -21,6 +24,7 @@ class Temp:
 
     def start(self, callback=None):
         self.callback = callback
+        self.seconds = self.init_seconds
         if self._thread is None:
             self._thread = threading.Thread(target=self._run)
             self._thread.start()
