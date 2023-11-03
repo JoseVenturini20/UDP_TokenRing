@@ -1,16 +1,31 @@
 import threading
 import zlib
-from Temp import Temp
+from Temp import  Temp
 from UDPSocket import UDPSocket
 import queue
-class TokenRing:
+
+class DisplayManager:
     def __init__(self):
+        self.statuses = {}
+        self.lock = threading.Lock()
+
+    def update_status(self, message, temp_instance):
+        with self.lock:
+            self.statuses[temp_instance] = message
+            self.refresh_display()
+
+    def refresh_display(self):
+        output = ' | '.join(status for status in self.statuses.values())
+        print(output, end='\r', flush=True)
+class TokenRing:
+    def __init__(self, display_manager):
+        self.display_manager = display_manager
         self.__UDPSocket = UDPSocket(5000)
         threading.Thread(target=self.__receive_data).start()
         self.__configure()
         self.__queue = queue.Queue()
-        self.__temp_token_management_timeout = Temp(10, alignment=300, text='Timeout: ')
-        self.__temp_token_management_multiple_tokens = Temp(8, alignment=0, text='Multiple tokens: ')
+        self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
+        self.__temp_token_management_multiple_tokens = Temp(8, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
         self.__temp_with_token = Temp(self.__token_time)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
@@ -138,7 +153,6 @@ class TokenRing:
 
     def __enqueue_message(self, message):
         self.__queue.put(message)
-
         
     def __send(self, data):
         print('Sending data', data)
@@ -152,7 +166,11 @@ class TokenRing:
     def introduce_error(self):
         pass
 
-tk = TokenRing()
+if __name__ == "__main__":
+    display_manager = DisplayManager()
+    
+    # TokenRing será atualizado para aceitar display_manager como parâmetro
+    tk = TokenRing(display_manager)
 
 
 while True:

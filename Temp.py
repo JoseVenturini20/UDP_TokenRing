@@ -1,48 +1,70 @@
 import time
 import threading
+import logging
+import os
+import platform
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Temp:
-    def __init__(self, seconds, alignment=10, text=""):
-        self.init_seconds = seconds
-        self.seconds = seconds
-        self._thread = None
-        self._stop_event = threading.Event()
-        self.__alignment = alignment 
+    def __init__(self, seconds, alignment=10, text="", update_callback=None):
+        self.__init_seconds = seconds
+        self.__seconds = seconds
+        self.__thread = None
+        self.__stop_event = threading.Event()
+        self.__alignment = alignment
         self.__text = text
-        self.callback = None
+        self.__update_callback = update_callback
+        self.__callback = None
 
-    def _run(self):
-        while self.seconds and not self._stop_event.is_set():
-            mins, secs = divmod(self.seconds, 60)
-            timeformat = '{: >{align}}'.format('{text}{:02d}:{:02d}'.format(mins, secs, text=self.__text), align=self.__alignment, text=self.__text)
-            print(timeformat, end='\r')
+    def __run(self):
+        while self.__seconds and not self.__stop_event.is_set():
+            # self._clear_terminal()
+            mins, secs = divmod(self.__seconds, 60)
+            timeformat = '{: >{align}}'.format(f'{self.__text}{mins:02d}:{secs:02d}', align=self.__alignment)
+            if self.__update_callback:
+                self.__update_callback(timeformat, self)
             time.sleep(1)
-            self.seconds -= 1
+            self.__seconds -= 1
 
-        if self._stop_event.is_set():
-            self._stop_event.clear()
+        if self.__stop_event.is_set():
+            self.__stop_event.clear()
         else:
-            if self.callback:
-                self.callback()
+            if self.__callback:
+                self.__callback()
+            self.__seconds = self.__init_seconds  # Reset the timer
 
-        self._thread = None
+        self.__thread = None
+
+    def _clear_terminal(self):
+        os.system('cls' if platform.system() == 'Windows' else 'clear')
 
     def start(self, callback=None):
-        self.callback = callback
-        self.seconds = self.init_seconds
-        if self._thread is None:
-            self._stop_event.clear()
-            self._thread = threading.Thread(target=self._run)
-            self._thread.start()
+        print("start")
+        self.__callback = callback
+        self.__seconds = self.__init_seconds
+        self.__stop_event.clear()  # Ensure the stop event is cleared before starting
 
-    def stop(self, callback=None):
-        if self._thread:
-            self._stop_event.set()
-            self._thread.join()
-            self._thread = None
-            self._stop_event.clear()
-            if callback:
-                callback()
+         
+        self.__thread = threading.Thread(target=self.__run)
+        self.__thread.start()
+
+
+    def stop(self):
+        print(f"Stopping timer. Initial seconds: {self.__init_seconds}")
+        if self.__thread and self.__thread.is_alive():
+            self.__stop_event.set()
+            self.__thread.join()
+        self.__seconds = self.__init_seconds  # Reset the timer here as well
+        print(f"Timer reset. Seconds now: {self.__seconds}")
+        self.__thread = None
+        self.__stop_event.clear()
+
 
     def is_running(self):
-        return self._thread is not None
+        return self.__thread is not None and self.__thread.is_alive()
+
+    @property
+    def seconds(self):
+        return self.__seconds
+
