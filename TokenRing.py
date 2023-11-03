@@ -1,4 +1,5 @@
 import threading
+import zlib
 from Temp import Temp
 from UDPSocket import UDPSocket
 import queue
@@ -8,8 +9,8 @@ class TokenRing:
         threading.Thread(target=self.__receive_data).start()
         self.__configure()
         self.__queue = queue.Queue()
-        self.__temp_token_management_timeout = Temp(10)
-        self.__temp_token_management_multiple_tokens = Temp(3)
+        self.__temp_token_management_timeout = Temp(10, alignment=300, text='Timeout: ')
+        self.__temp_token_management_multiple_tokens = Temp(8, alignment=0, text='Multiple tokens: ')
         self.__temp_with_token = Temp(self.__token_time)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
@@ -21,6 +22,7 @@ class TokenRing:
     def __receive_data(self):
         while True:
             data = self.__UDPSocket.recv()
+            print('Received data', data)
             if data:
                 self.__decode_data(data.decode("utf-8"))
             else:
@@ -46,6 +48,7 @@ class TokenRing:
         def multiple_tokens():
             remove_token()
         
+        print(self.__temp_token_management_multiple_tokens.is_running())
         if self.__temp_token_management_multiple_tokens.is_running():
             multiple_tokens()
         else: 
@@ -59,19 +62,42 @@ class TokenRing:
                 self.__is_token_holder = True
                 #self.__temp_with_token.start(self.__send_token)
         else:
-            msg = data.split(';')
-            ack = msg[0].split(':')[1]
-            if (ack == 'ACK' or ack == 'NACK' or 'naoexiste'):
-                self.__ack_event.set()
+            msg = data.split(':')
+            msg = msg[1].split(';')
+            ack = msg[0]
+            origin = msg[1]
+            destination = msg[2]
+            crc = msg[3]
+            msg_content = msg[4]
+            if (origin == self.__my_nickname):
+                if (ack.lower() == 'nack'):
+                    self.__ack_event.set()
+                    print('Message not acknowledged', msg)
+                    self.__enqueue_message(self.__last_message)
+                elif (ack.lower() =='naoexiste'):
+                    self.__ack_event.set()
+                    print('Destination unreachable', msg)
+                elif (ack.lower() == 'ack'):
+                    self.__ack_event.set()
+                    print('Message Acknowledged', msg)
+            elif(destination == self.__my_nickname):
+                if(self.__check_crc(msg_content, int(crc))):
+                    print('Message received', msg)
+                    self.__send('7777:ACK;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8'))
+                else:
+                    print('Message corrupted', msg)
+                    self.__send('7777:NACK;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8'))
+            else:
+                self.__send(data.encode('utf-8'))
 
     def __calculate_crc(self, data):
-        pass
+        if isinstance(data, str):
+            data = data.encode('utf-8')
+        return zlib.crc32(data)
 
-    def __check_crc(self, data):
-        pass
-
-    def __retransmit_message(self, data):
-        pass
+    def __check_crc(self, data, expected_crc):
+        calculated_crc = self.__calculate_crc(data)
+        return calculated_crc == expected_crc
 
     def __wait_for_acknowledgement(self):
         self.__ack_event.wait()
@@ -90,16 +116,21 @@ class TokenRing:
             self.__token_holder_flag = value
             self.__ack_event_thread = threading.Thread(target=self.__send_message_when_token_holder)
             self.__ack_event_thread.start()
+        else:
+            self.__token_holder_flag = value
 
     def __send_message_when_token_holder(self):
         print('Sending message')
         if not self.__queue.empty():
             self.__send(self.__queue.get())
+            self.__temp_with_token.start(self.__send_token)
             self.__wait_for_acknowledgement()
+        else: 
             self.__temp_with_token.start(self.__send_token)
 
     def __send_token(self):
         self.__is_token_holder = False
+        print("token holder flag", self.__token_holder_flag)
         if (self.__token):
             self.__temp_token_management_timeout.start(callback=self.__send_token)
             self.__temp_token_management_multiple_tokens.start()
@@ -115,10 +146,17 @@ class TokenRing:
         self.__UDPSocket.send(data, (self.__right_ip, self.__right_port))
 
     def send_message(self, message, nickname):
-        self.__enqueue_message(message)
+        msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message)
+        self.__enqueue_message(msg.encode('utf-8'))
 
     def introduce_error(self):
         pass
 
 tk = TokenRing()
-tk.send_message(b'7777:ACK;Bob:Mary;19385749;Oi pessoal!', 'Bob')
+
+
+while True:
+    to = input('To: ')
+    msg = input('Message: ')
+    tk.send_message(msg, to)
+    
