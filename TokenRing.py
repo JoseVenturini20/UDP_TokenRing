@@ -136,11 +136,15 @@ class TokenRing:
             destination = msg[2]
             crc = msg[3]
             msg_content = msg[4]
-            if (origin == self.__my_nickname):
+            if (destination.lower() == 'todos'):
+                print('Message received', msg)
+                self.__send(data.encode('utf-8'))
+            elif (origin == self.__my_nickname):
                 if (ack.lower() == 'nack'):
                     self.__ack_event.set()
                     print('Message not acknowledged', msg)
                     self.__enqueue_message(self.__last_message)
+                    # esta errado tem que ser no começo
                 elif (ack.lower() =='naoexiste'):
                     self.__ack_event.set()
                     print('Destination unreachable', msg)
@@ -184,6 +188,9 @@ class TokenRing:
             self.__token_holder_flag = value
             self.__ack_event_thread = threading.Thread(target=self.__send_message_when_token_holder)
             self.__ack_event_thread.start()
+            if (self.__token):
+                self.__temp_token_management_multiple_tokens.stop()
+                self.__temp_token_management_timeout.stop()
             if self.__temp_token_management_timeout.is_running():
                 self.__temp_token_management_timeout.stop()
         else:
@@ -214,7 +221,7 @@ class TokenRing:
         self.__last_message = data
         self.__UDPSocket.send(data, (self.__right_ip, self.__right_port))
 
-    def send_message(self, message, nickname):
+    def send_message(self, message, nickname = 'TODOS'):
         msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message)
         self.__enqueue_message(msg.encode('utf-8'))
 
@@ -224,12 +231,7 @@ class TokenRing:
 if __name__ == "__main__":
     display_manager = DisplayManager()
     
-    # TokenRing será atualizado para aceitar display_manager como parâmetro
     tk = TokenRing(display_manager)
 
 
-while True:
-    to = input('To: ')
-    msg = input('Message: ')
-    tk.send_message(msg, to)
-    
+
