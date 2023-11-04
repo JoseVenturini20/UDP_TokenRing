@@ -40,10 +40,9 @@ class Temp:
         os.system('cls' if platform.system() == 'Windows' else 'clear')
 
     def start(self, callback=None):
-        print("start")
         self.__callback = callback
         self.__seconds = self.__init_seconds
-        self.__stop_event.clear()  # Ensure the stop event is cleared before starting
+        self.__stop_event.clear()
 
          
         self.__thread = threading.Thread(target=self.__run)
