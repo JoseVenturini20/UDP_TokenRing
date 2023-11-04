@@ -3,71 +3,124 @@ import zlib
 from Temp import  Temp
 from UDPSocket import UDPSocket
 import queue
-from rich.live import Live
-from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
-from rich.table import Table
-from prompt_toolkit import PromptSession
-from prompt_toolkit.shortcuts import clear
-import curses
+import tkinter as tk
+from tkinter import END, ttk
 class DisplayManager:
+    def start_gui_loop(self):
+        self.root.mainloop()
+
+    class TextRedirector(object):
+        def __init__(self, widget):
+            self.widget = widget
+
+        def write(self, string):
+            self.widget.config(state='normal')
+            self.widget.insert(END, string)
+            self.widget.see(END)
+            self.widget.config(state='disabled')
+
+        def flush(self):
+            pass
+
     def __init__(self):
-        self.statuses = {}
-        self.lock = threading.Lock()
-        self.progress = Progress(
-            SpinnerColumn(),
-            BarColumn(),
-            TextColumn("[progress.description]{task.description}"),
-        )
-        self.token_holder = Progress(
-            SpinnerColumn(),
-            BarColumn(),
-            TextColumn("[progress.description]{task.description}"),
-        )
-        self.table = Table.grid(expand=True)
-        self.table.add_column(justify="right")
-        self.live = Live(self.table, refresh_per_second=10)
-        self.tasks = {}
-        self.task_token_holder = {}
-        self.task_input = {}
-        self.live.start()
+        BG_COLOR = "#333333"
+        FG_COLOR = "#CCCCCC"
+        LOG_BG = "#222222"
+        BUTTON_BG = "#555555"
+
+        self.style = ttk.Style()
+        self.style.configure('TLabel', background=BG_COLOR, foreground=FG_COLOR)
+        self.style.configure('TEntry', background=BG_COLOR, foreground=FG_COLOR)
+        self.style.configure('TButton', background=BUTTON_BG, foreground=FG_COLOR)
+        self.style.configure('TFrame', background=BG_COLOR)
+
+        self.root = tk.Tk()
+        self.root.title("Token Ring")
+        self.root.geometry('1200x450') 
+        self.root.configure(bg=BG_COLOR)
+
+        self.frame_logs = ttk.Frame(self.root, padding="3")
+        self.frame_logs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_rowconfigure(0, weight=1)
+
+        self.frame_controls = ttk.Frame(self.root, padding="3")
+        self.frame_controls.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        self.root.grid_columnconfigure(1, weight=0)
+
+        self.text_widget_label = ttk.Label(self.frame_logs, text="Logs")
+        self.text_widget_label.pack(fill='x')
+
+        self.text_widget = tk.Text(self.frame_logs, wrap='word', bg=LOG_BG, fg=FG_COLOR)
+        self.text_widget.pack(expand=True, fill='both')
+
+        self.label_queue = ttk.Label(self.frame_controls, text="Queue")
+        self.label_queue.pack(fill='x')
+
+        self.queue_msg = tk.Text(self.frame_controls, wrap='word', height=16, bg=LOG_BG, fg=FG_COLOR)
+        self.queue_msg.pack(fill='x')
+
+        self.label_token = ttk.Label(self.frame_controls, text="Enviar para")
+        self.label_token.pack(fill='x')
+
+        self.input_send_message = ttk.Entry(self.frame_controls)
+        self.input_send_message.pack(fill='x')
+
+        self.label_message = ttk.Label(self.frame_controls, text="Mensagem")
+        self.label_message.pack(fill='x')
+
+        self.input_message = ttk.Entry(self.frame_controls)
+        self.input_message.pack(fill='x')
+
+        self.button_send = ttk.Button(self.frame_controls, text="Enviar", command=self.send_button_clicked)
+        self.button_send.pack(fill='x')
+
+        self.label_token_status = ttk.Label(self.frame_controls, text="Token Holder: False")
+        self.label_token_status.pack(fill='x')
+
+        self.label_token_manager = ttk.Label(self.frame_controls, text="Token: --")
+        self.label_token_manager.pack(fill='x')
+
+        self.label_token_manager_timeout = ttk.Label(self.frame_controls, text="Timeout: --")
+        self.label_token_manager_timeout.pack(fill='x')
+
+        self.label_token_manager_multi = ttk.Label(self.frame_controls, text="Multi tokens: --")
+        self.label_token_manager_multi.pack(fill='x')
+    
+    def send_button_clicked(self):
+        destination = self.input_send_message.get()  
+        message = self.input_message.get() 
+        if destination and message:
+            self.root.event_generate("<<SendMessage>>", when="tail") 
+
 
     def update_status(self, message, temp_instance):
-        with self.lock:
-            # Update the task's progress
-            task = self.tasks.get(temp_instance)
-            if task is None:
-                task = self.progress.add_task(description=message, total=100)
-                self.tasks[temp_instance] = task
-            else:
-                self.progress.update(task, description=message)
-
-            self.refresh_display()
-
+        split_message = message.split(' ')
+        if(split_message[0] == 'Timeout:'):
+            self.label_token_manager_timeout.config(text=message)
+        elif(split_message[0] == 'Multiple'):
+            self.label_token_manager_multi.config(text=message)
+        else:
+            self.label_token_manager.config(text=message)
     def update_token_holder(self, message, temp_instance):
-        with self.lock:
-            # Update the task's progress
-            task = self.task_token_holder.get(temp_instance)
-            if task is None:
-                task = self.token_holder.add_task(description=message, total=100)
-                self.task_token_holder[temp_instance] = task
-            else:
-                self.token_holder.update(task, description=message)
-
-            self.refresh_display()
+        self.label_token_status.config(text=message)
+    def update_queue_add_first(self, message):
+        message = f'{message}\n'
+        self.queue_msg.insert(1.0, message)
+        self.queue_msg.see(END)
+    def update_queue(self, message):
+        message = f'{message}\n'
+        self.queue_msg.insert(END, message)
+        self.queue_msg.see(END)
+    def update_queue_remove_first(self):
+        self.queue_msg.delete(1.0, 2.0)
+    def update_logs(self, message):
+        message = f'{message}\n'
+        self.text_widget.insert(END, message)
+        self.text_widget.see(END)
 
     def refresh_display(self):
-        # Redraw the table with the updated progress
-        self.table = Table.grid(expand=True)
-        self.table.add_column(justify="right")
-        self.table.add_row(
-            Panel.fit(self.progress, title="Status Token Manager", border_style="green", padding=(1, 2), width=60)
-        )
-        self.table.add_row(
-            Panel.fit(self.token_holder, title="Token Holder", border_style="red", padding=(1, 2), width=60)
-        )
-        self.live.update(self.table)
-        
+        pass
 
 class TokenRing:
     def __init__(self, display_manager):
@@ -75,10 +128,11 @@ class TokenRing:
         self.__UDPSocket = UDPSocket(5000)
         threading.Thread(target=self.__receive_data).start()
         self.__configure()
+        display_manager.root.bind("<<SendMessage>>", self.send_message_event)
         self.__queue = queue.Queue()
         self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
-        self.__temp_token_management_multiple_tokens = Temp(8, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
-        self.__temp_with_token = Temp(self.__token_time, alignment=0, text='Token: ', update_callback=self.display_manager.update_token_holder)
+        self.__temp_token_management_multiple_tokens = Temp(5, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
+        self.__temp_with_token = Temp(self.__token_time, alignment=0, text='Token: ', update_callback=self.display_manager.update_status)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
         self.__ack_event = threading.Event()
@@ -86,14 +140,26 @@ class TokenRing:
         if (self.__token):
             self.__temp_with_token.start(self.__send_token)
 
+    def start(self):
+        threading.Thread(target=self.__receive_data).start()
+    def send_message_event(self, event=None):
+        destination = self.display_manager.input_send_message.get()
+        message = self.display_manager.input_message.get()
+        print(destination)
+        print(message)
+        if destination and message:
+            self.send_message(message, destination)
+            self.display_manager.input_send_message.delete(0, tk.END)
+            self.display_manager.input_message.delete(0, tk.END) 
+
     def __receive_data(self):
         while True:
             data = self.__UDPSocket.recv()
-            print('Received data', data)
+            self.display_manager.update_logs(f'Received data {data}')
             if data:
                 self.__decode_data(data.decode("utf-8"))
             else:
-                print('No data received')
+                self.display_manager.update_logs('No data received')
     
     def __configure(self):
         with open('config.txt', 'r') as file:
@@ -106,16 +172,16 @@ class TokenRing:
 
     def __control_token(self):
         def remove_token():
-            print('Token removed')
+            self.display_manager.update_logs('Token removed')
 
         def token_timeout():
-            print('Token timeout')
+            self.display_manager.update_logs('Token timeout')
             self.__send_token()
 
         def multiple_tokens():
             remove_token()
         
-        print(self.__temp_token_management_multiple_tokens.is_running())
+        self.display_manager.update_logs(self.__temp_token_management_multiple_tokens.is_running())
         if self.__temp_token_management_multiple_tokens.is_running():
             multiple_tokens()
         else: 
@@ -127,7 +193,6 @@ class TokenRing:
                 self.__control_token()
             else:
                 self.__is_token_holder = True
-                #self.__temp_with_token.start(self.__send_token)
         else:
             msg = data.split(':')
             msg = msg[1].split(';')
@@ -137,28 +202,31 @@ class TokenRing:
             crc = msg[3]
             msg_content = msg[4]
             if (destination.lower() == 'todos'):
-                print('Message received', msg)
+                self.display_manager.update_logs(f'Message received {msg}')
                 self.__send(data.encode('utf-8'))
             elif (origin == self.__my_nickname):
                 if (ack.lower() == 'nack'):
+                    print("entrei")
                     self.__ack_event.set()
-                    print('Message not acknowledged', msg)
-                    self.__enqueue_message(self.__last_message)
-                    # esta errado tem que ser no começo
+                    self.display_manager.update_logs(f'Message not acknowledged {msg}')
+                    print(self.__last_message)
+                    self.__enqueue_message_first(self.__last_message)
+                    
                 elif (ack.lower() =='naoexiste'):
                     self.__ack_event.set()
-                    print('Destination unreachable', msg)
+                    self.display_manager.update_logs(f'Destination unreachable {msg}')
                 elif (ack.lower() == 'ack'):
                     self.__ack_event.set()
-                    print('Message Acknowledged', msg)
+                    self.display_manager.update_logs(f'Message Acknowledged {msg}')
             elif(destination == self.__my_nickname):
                 if(self.__check_crc(msg_content, int(crc))):
-                    print('Message received', msg)
+                    self.display_manager.update_logs(f'Message received {msg}')
                     self.__send('7777:ACK;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8'))
                 else:
-                    print('Message corrupted', msg)
+                    self.display_manager.update_logs(f'Message corrupted {msg}')
                     self.__send('7777:NACK;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8'))
             else:
+                self.display_manager.update_logs(f'Message not for me {msg}')
                 self.__send(data.encode('utf-8'))
 
     def __calculate_crc(self, data):
@@ -172,8 +240,7 @@ class TokenRing:
 
     def __wait_for_acknowledgement(self):
         self.__ack_event.wait()
-        print('ACK received')
-        self.__last_message = None
+        # self.__last_message = None
         self.__ack_event.clear()
 
     @property
@@ -184,7 +251,7 @@ class TokenRing:
     def __is_token_holder(self, value):
         self.display_manager.update_token_holder('Token Holder: {}'.format(value), self.__temp_token_management_timeout)
         if value and not self.__token_holder_flag: 
-            print('Token holder')
+            self.display_manager.update_logs('Token holder')
             self.__token_holder_flag = value
             self.__ack_event_thread = threading.Thread(target=self.__send_message_when_token_holder)
             self.__ack_event_thread.start()
@@ -197,17 +264,17 @@ class TokenRing:
             self.__token_holder_flag = value
 
     def __send_message_when_token_holder(self):
-        print('Sending message')
         if not self.__queue.empty():
-            self.__send(self.__queue.get())
+            self.display_manager.update_logs('Sending message')
+            self.__send(self.__dequeue_message())
             self.__temp_with_token.start(self.__send_token)
             self.__wait_for_acknowledgement()
         else: 
+            self.display_manager.update_logs('No message to send')
             self.__temp_with_token.start(self.__send_token)
 
     def __send_token(self):
         self.__is_token_holder = False
-        print("token holder flag", self.__token_holder_flag)
         if (self.__token):
             self.__temp_token_management_timeout.start(callback=self.__send_token)
             self.__temp_token_management_multiple_tokens.start()
@@ -215,10 +282,23 @@ class TokenRing:
 
     def __enqueue_message(self, message):
         self.__queue.put(message)
-        
-    def __send(self, data):
-        print('Sending data', data)
+        self.display_manager.update_queue(message)
+    def __enqueue_message_first(self, message):
+        temp_queue = queue.Queue()
+        temp_queue.put(message)
+        while not self.__queue.empty():
+            temp_queue.put(self.__queue.get())
+        self.__queue = temp_queue
+        self.display_manager.update_queue_add_first(message)
+
+    def __dequeue_message(self):
+        self.display_manager.update_queue_remove_first()
+        data = self.__queue.get()
         self.__last_message = data
+        return data
+    
+    def __send(self, data):
+        self.display_manager.update_logs(f'Sending data {data}')
         self.__UDPSocket.send(data, (self.__right_ip, self.__right_port))
 
     def send_message(self, message, nickname = 'TODOS'):
@@ -228,10 +308,18 @@ class TokenRing:
     def introduce_error(self):
         pass
 
-if __name__ == "__main__":
+
+def main():
     display_manager = DisplayManager()
-    
-    tk = TokenRing(display_manager)
+    token_ring = TokenRing(display_manager)
 
+    token_ring_thread = threading.Thread(target=token_ring.start)
+    token_ring_thread.daemon = True
 
+    token_ring_thread.start()
+    display_manager.start_gui_loop()
 
+    token_ring_thread.join()
+
+if __name__ == "__main__":
+    main()

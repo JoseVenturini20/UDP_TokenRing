@@ -2,9 +2,6 @@ from threading import Thread
 import time
 import tkinter as tk
 from tkinter import ttk
-import threading
-from tkinter import Tk, Text, Scrollbar, END, VERTICAL
-from token_ring import TokenRing 
 
 class TextRedirector(object):
     def __init__(self, widget):
@@ -53,7 +50,7 @@ text_widget.pack(expand=True, fill='both')
 label_queue = ttk.Label(frame_controls, text="Queue")
 label_queue.pack(fill='x')
 
-queue_msg = tk.Text(frame_controls, wrap='word', height=18, bg=LOG_BG, fg=FG_COLOR)
+queue_msg = tk.Text(frame_controls, wrap='word', height=16, bg=LOG_BG, fg=FG_COLOR)
 queue_msg.pack(fill='x')
 
 label_token = ttk.Label(frame_controls, text="Enviar para")
@@ -67,6 +64,9 @@ label_message.pack(fill='x')
 
 input_message = ttk.Entry(frame_controls)
 input_message.pack(fill='x')
+
+button_send = ttk.Button(frame_controls, text="Enviar")
+button_send.pack(fill='x')
 
 label_token_status = ttk.Label(frame_controls, text="Token Holder: False")
 label_token_status.pack(fill='x')
@@ -90,33 +90,35 @@ names_list = [
     "Michael",
 ]
 
-def escreve():
-    global multi, timeout
-    for a in range(1, 50):
-        text_widget.config(state=tk.NORMAL)
-        if (a % 2 == 0):
-            label_token_status.config(text="Token Holder: True")
-        else: 
-            label_token_status.config(text="Token Holder: False") 
-
-
-        if (a % 10 == 0):
-            queue_msg.insert(tk.END, f"7777:naoexiste;{names_list[a % 4]};{names_list[(a + 1) % 4]};12345;oiii\n")
-        text_widget.insert(tk.END, f"Log exemplo {a}\n")
-        text_widget.see(tk.END)  
-        root.update_idletasks()  
-        text_widget.config(state=tk.DISABLED)
-        label_token_manager_timeout.config(text=f"Token timeout: {timeout}")
-        label_token_manager_multi.config(text=f"Token multi tokens: {multi}")
-
-        timeout-=0.5
-        multi-=0.5
-        if (timeout < 0):
-            timeout = 10
-        if (multi < 0):
-            multi = 5
-        time.sleep(0.5)
-
-Thread(target=escreve).start()
-
 root.mainloop()
+
+# def escreve():
+#     global multi, timeout
+#     for a in range(1, 50):
+#         text_widget.config(state=tk.NORMAL)
+#         if (a % 2 == 0):
+#             label_token_status.config(text="Token Holder: True")
+#         else: 
+#             label_token_status.config(text="Token Holder: False") 
+
+
+#         if (a % 10 == 0):
+#             queue_msg.insert(tk.END, f"7777:naoexiste;{names_list[a % 4]};{names_list[(a + 1) % 4]};12345;oiii\n")
+#         text_widget.insert(tk.END, f"Log exemplo {a}\n")
+#         text_widget.see(tk.END)  
+#         root.update_idletasks()  
+#         text_widget.config(state=tk.DISABLED)
+#         label_token_manager_timeout.config(text=f"Token timeout: {timeout}")
+#         label_token_manager_multi.config(text=f"Token multi tokens: {multi}")
+
+#         timeout-=0.5
+#         multi-=0.5
+#         if (timeout < 0):
+#             timeout = 10
+#         if (multi < 0):
+#             multi = 5
+#         time.sleep(0.5)
+
+
+# Thread(target=escreve).start()
+
