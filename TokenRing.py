@@ -57,7 +57,7 @@ class DisplayManager:
         self.label_queue = ttk.Label(self.frame_controls, text="Queue")
         self.label_queue.pack(fill='x')
 
-        self.queue_msg = tk.Text(self.frame_controls, wrap='word', height=16, bg=LOG_BG, fg=FG_COLOR)
+        self.queue_msg = tk.Text(self.frame_controls, wrap='word', height=14, bg=LOG_BG, fg=FG_COLOR)
         self.queue_msg.pack(fill='x')
 
         self.label_token = ttk.Label(self.frame_controls, text="Enviar para")
@@ -75,6 +75,20 @@ class DisplayManager:
         self.button_send = ttk.Button(self.frame_controls, text="Enviar", command=self.send_button_clicked)
         self.button_send.pack(fill='x')
 
+        self.corrupt_message_var = tk.BooleanVar()
+
+        self.checkbox_corrupt_message = ttk.Checkbutton(
+            self.frame_controls, 
+            text="Corromper mensagem", 
+            variable=self.corrupt_message_var, 
+            style='TCheckbutton',
+            command=self.on_corrupt_toggle,
+            onvalue=1,
+            offvalue=0
+        )
+
+        self.checkbox_corrupt_message.pack(fill='x')
+
         self.label_token_status = ttk.Label(self.frame_controls, text="Token Holder: False")
         self.label_token_status.pack(fill='x')
 
@@ -87,6 +101,10 @@ class DisplayManager:
         self.label_token_manager_multi = ttk.Label(self.frame_controls, text="Multi tokens: --")
         self.label_token_manager_multi.pack(fill='x')
     
+    def on_corrupt_toggle(self):
+        print("Checkbox value changed:", self.corrupt_message_var.get())
+
+
     def send_button_clicked(self):
         destination = self.input_send_message.get()  
         message = self.input_message.get() 
@@ -131,7 +149,7 @@ class TokenRing:
         display_manager.root.bind("<<SendMessage>>", self.send_message_event)
         self.__queue = queue.Queue()
         self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
-        self.__temp_token_management_multiple_tokens = Temp(5, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
+        self.__temp_token_management_multiple_tokens = Temp(2, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
         self.__temp_with_token = Temp(self.__token_time, alignment=0, text='Token: ', update_callback=self.display_manager.update_status)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
@@ -145,8 +163,6 @@ class TokenRing:
     def send_message_event(self, event=None):
         destination = self.display_manager.input_send_message.get()
         message = self.display_manager.input_message.get()
-        print(destination)
-        print(message)
         if destination and message:
             self.send_message(message, destination)
             self.display_manager.input_send_message.delete(0, tk.END)
@@ -302,11 +318,20 @@ class TokenRing:
         self.__UDPSocket.send(data, (self.__right_ip, self.__right_port))
 
     def send_message(self, message, nickname = 'TODOS'):
-        msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message)
+        message_send = message
+        print(self.display_manager.corrupt_message_var.get(),"asdas")
+        if self.display_manager.corrupt_message_var.get():
+            print("entrei")
+            message_send= self.introduce_error(message_send)
+            print(message_send)
+        msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message_send)
         self.__enqueue_message(msg.encode('utf-8'))
 
-    def introduce_error(self):
-        pass
+    def introduce_error(self, message):
+        corrupted_bytes = bytearray(message, 'utf-8')
+        for i in range(len(corrupted_bytes)):
+            corrupted_bytes[i] ^= 0xFF 
+        return corrupted_bytes.decode('utf-8', errors='replace')
 
 
 def main():
