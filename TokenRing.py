@@ -188,6 +188,9 @@ class TokenRing:
             self.__token_holder_flag = value
             self.__ack_event_thread = threading.Thread(target=self.__send_message_when_token_holder)
             self.__ack_event_thread.start()
+            if (self.__token):
+                self.__temp_token_management_multiple_tokens.stop()
+                self.__temp_token_management_timeout.stop()
             if self.__temp_token_management_timeout.is_running():
                 self.__temp_token_management_timeout.stop()
         else:
