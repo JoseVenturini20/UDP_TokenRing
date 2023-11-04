@@ -3,20 +3,72 @@ import zlib
 from Temp import  Temp
 from UDPSocket import UDPSocket
 import queue
-
+from rich.live import Live
+from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn
+from rich.table import Table
+from prompt_toolkit import PromptSession
+from prompt_toolkit.shortcuts import clear
+import curses
 class DisplayManager:
     def __init__(self):
         self.statuses = {}
         self.lock = threading.Lock()
+        self.progress = Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.description]{task.description}"),
+        )
+        self.token_holder = Progress(
+            SpinnerColumn(),
+            BarColumn(),
+            TextColumn("[progress.description]{task.description}"),
+        )
+        self.table = Table.grid(expand=True)
+        self.table.add_column(justify="right")
+        self.live = Live(self.table, refresh_per_second=10)
+        self.tasks = {}
+        self.task_token_holder = {}
+        self.task_input = {}
+        self.live.start()
 
     def update_status(self, message, temp_instance):
         with self.lock:
-            self.statuses[temp_instance] = message
+            # Update the task's progress
+            task = self.tasks.get(temp_instance)
+            if task is None:
+                task = self.progress.add_task(description=message, total=100)
+                self.tasks[temp_instance] = task
+            else:
+                self.progress.update(task, description=message)
+
+            self.refresh_display()
+
+    def update_token_holder(self, message, temp_instance):
+        with self.lock:
+            # Update the task's progress
+            task = self.task_token_holder.get(temp_instance)
+            if task is None:
+                task = self.token_holder.add_task(description=message, total=100)
+                self.task_token_holder[temp_instance] = task
+            else:
+                self.token_holder.update(task, description=message)
+
             self.refresh_display()
 
     def refresh_display(self):
-        output = ' | '.join(status for status in self.statuses.values())
-        print(output, end='\r', flush=True)
+        # Redraw the table with the updated progress
+        self.table = Table.grid(expand=True)
+        self.table.add_column(justify="right")
+        self.table.add_row(
+            Panel.fit(self.progress, title="Status Token Manager", border_style="green", padding=(1, 2), width=60)
+        )
+        self.table.add_row(
+            Panel.fit(self.token_holder, title="Token Holder", border_style="red", padding=(1, 2), width=60)
+        )
+        self.live.update(self.table)
+        
+
 class TokenRing:
     def __init__(self, display_manager):
         self.display_manager = display_manager
@@ -26,7 +78,7 @@ class TokenRing:
         self.__queue = queue.Queue()
         self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
         self.__temp_token_management_multiple_tokens = Temp(8, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
-        self.__temp_with_token = Temp(self.__token_time)
+        self.__temp_with_token = Temp(self.__token_time, alignment=0, text='Token: ', update_callback=self.display_manager.update_token_holder)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
         self.__ack_event = threading.Event()
@@ -126,11 +178,14 @@ class TokenRing:
 
     @__is_token_holder.setter
     def __is_token_holder(self, value):
+        self.display_manager.update_token_holder('Token Holder: {}'.format(value), self.__temp_token_management_timeout)
         if value and not self.__token_holder_flag: 
             print('Token holder')
             self.__token_holder_flag = value
             self.__ack_event_thread = threading.Thread(target=self.__send_message_when_token_holder)
             self.__ack_event_thread.start()
+            if self.__temp_token_management_timeout.is_running():
+                self.__temp_token_management_timeout.stop()
         else:
             self.__token_holder_flag = value
 
