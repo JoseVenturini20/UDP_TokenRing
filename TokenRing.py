@@ -311,11 +311,15 @@ class TokenRing:
         self.display_manager.update_queue_remove_first()
         data = self.__queue.get()
         self.__last_message = data
-        message_send = data.decode('utf-8').split(':').split(';')[4]
-        to = data.decode('utf-8').split(':').split(';')[2]
+        msg = data.decode("utf-8").split(':')
+        msg = msg[1].split(';')
+        origin = msg[1]
+        destination = msg[2]
+        crc = msg[3]
+        msg_content = msg[4]
         if self.display_manager.checkbox_corrupt_message.getvar("Var"):
-            message_send= self.introduce_error(message_send)
-        data = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, to, self.__calculate_crc(data), message_send)
+            msg_content= self.introduce_error(msg_content)
+        data = '7777:naoexiste;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8')
         return data
     
     def __send(self, data):
