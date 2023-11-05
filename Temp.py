@@ -19,6 +19,7 @@ class Temp:
 
     def __run(self):
         while self.__seconds and not self.__stop_event.is_set():
+            self.__test = False
             # self._clear_terminal()
             mins, secs = divmod(self.__seconds, 60)
             timeformat = '{: >{align}}'.format(f'{self.__text}{mins:02d}:{secs:02d}', align=self.__alignment)
@@ -26,7 +27,8 @@ class Temp:
                 self.__update_callback(timeformat, self)
             time.sleep(1)
             self.__seconds -= 1
-
+        timeformat = '{: >{align}}'.format(f'{self.__text}---', align=self.__alignment)
+        self.__update_callback(timeformat, self)
         if self.__stop_event.is_set():
             self.__stop_event.clear()
         else:
@@ -44,7 +46,10 @@ class Temp:
         self.__seconds = self.__init_seconds
         self.__stop_event.clear()
 
-         
+        if (self.__thread and self.__thread.is_alive()):
+            print("Timer is already running")
+            self.stop()
+
         self.__thread = threading.Thread(target=self.__run)
         self.__thread.start()
 
@@ -58,6 +63,8 @@ class Temp:
         print(f"Timer reset. Seconds now: {self.__seconds}")
         self.__thread = None
         self.__stop_event.clear()
+        # if self.__update_callback:
+        #         self.__update_callback(f"{self.__text} ---", self)
 
 
     def is_running(self):
