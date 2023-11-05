@@ -311,6 +311,11 @@ class TokenRing:
         self.display_manager.update_queue_remove_first()
         data = self.__queue.get()
         self.__last_message = data
+        message_send = data.decode('utf-8').split(':').split(';')[4]
+        to = data.decode('utf-8').split(':').split(';')[2]
+        if self.display_manager.checkbox_corrupt_message.getvar("Var"):
+            message_send= self.introduce_error(message_send)
+        data = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, to, self.__calculate_crc(data), message_send)
         return data
     
     def __send(self, data):
@@ -319,10 +324,6 @@ class TokenRing:
 
     def send_message(self, message, nickname = 'TODOS'):
         message_send = message
-        if self.display_manager.checkbox_corrupt_message.getvar("Var"):
-            print("entrei")
-            message_send= self.introduce_error(message_send)
-            print(message_send)
         msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message_send)
         self.__enqueue_message(msg.encode('utf-8'))
 
@@ -331,6 +332,7 @@ class TokenRing:
         if random.random() > probability:
             return message
         else:
+            self.display_manager.update_logs(f'Corrupting message {message}')
             corrupted_bytes = bytearray(message, 'utf-8')
             message_length = len(corrupted_bytes)
             
