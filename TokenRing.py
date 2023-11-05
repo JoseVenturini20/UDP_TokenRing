@@ -1,3 +1,4 @@
+import random
 import threading
 import zlib
 from Temp import  Temp
@@ -75,17 +76,16 @@ class DisplayManager:
         self.button_send = ttk.Button(self.frame_controls, text="Enviar", command=self.send_button_clicked)
         self.button_send.pack(fill='x')
 
-        self.corrupt_message_var = tk.BooleanVar()
+        self.corrupt_message_var = tk.BooleanVar(value=False, name="Var")
 
         self.checkbox_corrupt_message = ttk.Checkbutton(
             self.frame_controls, 
             text="Corromper mensagem", 
             variable=self.corrupt_message_var, 
             style='TCheckbutton',
-            command=self.on_corrupt_toggle,
-            onvalue=1,
-            offvalue=0
+            command=self.on_corrupt_toggle
         )
+        self.checkbox_corrupt_message.setvar("Var", True)
 
         self.checkbox_corrupt_message.pack(fill='x')
 
@@ -102,7 +102,7 @@ class DisplayManager:
         self.label_token_manager_multi.pack(fill='x')
     
     def on_corrupt_toggle(self):
-        print("Checkbox value changed:", self.corrupt_message_var.get())
+        pass
 
 
     def send_button_clicked(self):
@@ -319,19 +319,27 @@ class TokenRing:
 
     def send_message(self, message, nickname = 'TODOS'):
         message_send = message
-        print(self.display_manager.corrupt_message_var.get(),"asdas")
-        if self.display_manager.corrupt_message_var.get():
+        if self.display_manager.checkbox_corrupt_message.getvar("Var"):
             print("entrei")
             message_send= self.introduce_error(message_send)
             print(message_send)
         msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message_send)
         self.__enqueue_message(msg.encode('utf-8'))
 
-    def introduce_error(self, message):
+    def introduce_error(self, message, error_count=1):
         corrupted_bytes = bytearray(message, 'utf-8')
-        for i in range(len(corrupted_bytes)):
-            corrupted_bytes[i] ^= 0xFF 
-        return corrupted_bytes.decode('utf-8', errors='replace')
+        message_length = len(corrupted_bytes)
+        
+        indices_to_corrupt = random.sample(range(message_length), error_count)
+        
+        for i in indices_to_corrupt:
+            bit_to_flip = random.randint(0, 7)
+            corrupted_bytes[i] ^= (1 << bit_to_flip)
+        
+        try:
+            return corrupted_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            return corrupted_bytes.decode('utf-8', errors='replace')
 
 
 def main():
