@@ -327,19 +327,23 @@ class TokenRing:
         self.__enqueue_message(msg.encode('utf-8'))
 
     def introduce_error(self, message, error_count=1):
-        corrupted_bytes = bytearray(message, 'utf-8')
-        message_length = len(corrupted_bytes)
-        
-        indices_to_corrupt = random.sample(range(message_length), error_count)
-        
-        for i in indices_to_corrupt:
-            bit_to_flip = random.randint(0, 7)
-            corrupted_bytes[i] ^= (1 << bit_to_flip)
-        
-        try:
-            return corrupted_bytes.decode('utf-8')
-        except UnicodeDecodeError:
-            return corrupted_bytes.decode('utf-8', errors='replace')
+        probability = 0.25
+        if random.random() > probability:
+            return message
+        else:
+            corrupted_bytes = bytearray(message, 'utf-8')
+            message_length = len(corrupted_bytes)
+            
+            indices_to_corrupt = random.sample(range(message_length), error_count)
+            
+            for i in indices_to_corrupt:
+                bit_to_flip = random.randint(0, 7)
+                corrupted_bytes[i] ^= (1 << bit_to_flip)
+            
+            try:
+                return corrupted_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                return corrupted_bytes.decode('utf-8', errors='replace')
 
 
 def main():
