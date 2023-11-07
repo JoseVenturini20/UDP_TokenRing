@@ -83,11 +83,19 @@ class DisplayManager:
             text="Corromper mensagem", 
             variable=self.corrupt_message_var, 
             style='TCheckbutton',
-            command=self.on_corrupt_toggle
         )
         self.checkbox_corrupt_message.setvar("Var", True)
 
         self.checkbox_corrupt_message.pack(fill='x')
+
+        self.checkbox_block_token = ttk.Checkbutton(
+            self.frame_controls, 
+            text="Bloquear token", 
+            variable=self.corrupt_message_var, 
+            style='TCheckbutton',
+        )
+
+        self.checkbox_block_token.pack(fill='x')
 
         self.label_token_status = ttk.Label(self.frame_controls, text="Token Holder: False")
         self.label_token_status.pack(fill='x')
@@ -101,8 +109,7 @@ class DisplayManager:
         self.label_token_manager_multi = ttk.Label(self.frame_controls, text="Multi tokens: --")
         self.label_token_manager_multi.pack(fill='x')
     
-    def on_corrupt_toggle(self):
-        pass
+   
 
 
     def send_button_clicked(self):
