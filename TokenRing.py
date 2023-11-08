@@ -240,6 +240,8 @@ class TokenRing:
                 if (ack.lower() == 'nack'):
                     if (self.__retries == 2): 
                         self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] ALL RETRIES FAIL {msg}')
+                        self.__retries = 0
+                        return
                     self.__ack_event.set()
                     self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                     print(self.__last_message)
