@@ -314,7 +314,11 @@ class TokenRing:
     def __send_token(self):
         self.__is_token_holder = False
         if (self.__token):
+            self.__temp_token_management_timeout.stop()
+            self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
             self.__temp_token_management_timeout.start(callback=self.__send_token)
+            self.__temp_token_management_multiple_tokens.stop()
+            self.__temp_token_management_multiple_tokens = Temp(5, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
             self.__temp_token_management_multiple_tokens.start()
         if(self.display_manager.checkbox_block_token.getvar("VarBlock")=="0"):
             self.__send(b'9000')
