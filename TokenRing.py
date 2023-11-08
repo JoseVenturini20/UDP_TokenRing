@@ -169,6 +169,7 @@ class TokenRing:
         self.__ack_event_thread = None
         self.__ack_event = threading.Event()
         self.__last_message = None
+        self.__retries = 0 
         if (self.__token):
             self.__temp_with_token.start(self.__send_token)
 
@@ -188,11 +189,11 @@ class TokenRing:
     def __receive_data(self):
         while True:
             data = self.__UDPSocket.recv()
-            self.display_manager.update_logs(f'Received data {data}')
+            self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Received data {data}')
             if data:
                 self.__decode_data(data.decode("utf-8"))
             else:
-                self.display_manager.update_logs('No data received')
+                self.display_manager.update_logs('[RECEBIMENTO DE MENSAGEM] No data received]')
     
     def __configure(self):
         with open('config.txt', 'r') as file:
@@ -205,10 +206,10 @@ class TokenRing:
 
     def __control_token(self):
         def remove_token():
-            self.display_manager.update_logs('Token removed')
+            self.display_manager.update_logs('[TOKEN MANAGEMENT] Removing token')
 
         def token_timeout():
-            self.display_manager.update_logs('Token timeout')
+            self.display_manager.update_logs('[TOKEN MANAGEMENT] Token timeout')
             self.__send_token()
 
         def multiple_tokens():
@@ -234,31 +235,35 @@ class TokenRing:
             crc = msg[3]
             msg_content = msg[4]
             if (destination.lower() == 'todos'):
-                self.display_manager.update_logs(f'Message received {msg}')
+                self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for everyone {msg}')
                 self.__send(data.encode('utf-8'))
             elif (origin == self.__my_nickname):
                 if (ack.lower() == 'nack'):
-                    print("entrei")
+                    if (self.__retries == 2): 
+                        self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] ALL RETRIES FAIL {msg}')
+                        self.__retries = 0
+                        return
                     self.__ack_event.set()
-                    self.display_manager.update_logs(f'Message not acknowledged {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                     print(self.__last_message)
                     self.__enqueue_message_first(self.__last_message)
+                    __retries += 1
                     
                 elif (ack.lower() =='naoexiste'):
                     self.__ack_event.set()
-                    self.display_manager.update_logs(f'Destination unreachable {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                 elif (ack.lower() == 'ack'):
                     self.__ack_event.set()
-                    self.display_manager.update_logs(f'Message Acknowledged {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message acknowledged {msg}')
             elif(destination == self.__my_nickname):
                 if(self.__check_crc(msg_content, int(crc))):
-                    self.display_manager.update_logs(f'Message received {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for me {msg}')
                     self.__send('7777:ACK;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8'))
                 else:
-                    self.display_manager.update_logs(f'Message corrupted {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for me {msg}')
                     self.__send('7777:NACK;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8'))
             else:
-                self.display_manager.update_logs(f'Message not for me {msg}')
+                self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for someone else {msg}')
                 self.__send(data.encode('utf-8'))
 
     def __calculate_crc(self, data):
@@ -283,7 +288,7 @@ class TokenRing:
     def __is_token_holder(self, value):
         self.display_manager.update_token_holder('Token Holder: {}'.format(value), self.__temp_token_management_timeout)
         if value and not self.__token_holder_flag: 
-            self.display_manager.update_logs('Token holder')
+            self.display_manager.update_logs('[TOKEN MANAGEMENT] I am the token holder')
             self.__token_holder_flag = value
             self.__ack_event_thread = threading.Thread(target=self.__send_message_when_token_holder)
             self.__ack_event_thread.start()
@@ -297,12 +302,13 @@ class TokenRing:
 
     def __send_message_when_token_holder(self):
         if not self.__queue.empty():
-            self.display_manager.update_logs('Sending message')
-            self.__send(self.__dequeue_message())
+            msg = self.__dequeue_message()
+            self.display_manager.update_logs('[ENVIO DE MENSAGEM] Sending message {}'.format(msg))
+            self.__send(msg)
             self.__temp_with_token.start(self.__send_token)
             self.__wait_for_acknowledgement()
         else: 
-            self.display_manager.update_logs('No message to send')
+            self.display_manager.update_logs('[ENVIO DE MENSAGEM] No messages to send')
             self.__temp_with_token.start(self.__send_token)
 
     def __send_token(self):
@@ -339,7 +345,7 @@ class TokenRing:
         return data
     
     def __send(self, data):
-        self.display_manager.update_logs(f'Sending data {data}')
+        self.display_manager.update_logs(f'[ENVIO NO SOCKET] Sending data {data}')
         self.__UDPSocket.send(data, (self.__right_ip, self.__right_port))
 
     def send_message(self, message, nickname = 'TODOS'):
@@ -352,7 +358,7 @@ class TokenRing:
         if (random.random() > probability) and (self.display_manager.checkbox_corrupt_message.getvar("Var")=="0"):
             return message
         else:
-            self.display_manager.update_logs(f'Corrupting message {message}')
+            self.display_manager.update_logs(f'[ENVIO DE MENSAGEM] Corrupting message {message}')
             corrupted_bytes = bytearray(message, 'utf-8')
             message_length = len(corrupted_bytes)
             
