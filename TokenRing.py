@@ -29,16 +29,17 @@ class DisplayManager:
         LOG_BG = "#222222"
         BUTTON_BG = "#555555"
 
-        self.style = ttk.Style()
-        self.style.configure('TLabel', background=BG_COLOR, foreground=FG_COLOR)
-        self.style.configure('TEntry', background=BG_COLOR, foreground=FG_COLOR)
-        self.style.configure('TButton', background=BUTTON_BG, foreground=FG_COLOR)
-        self.style.configure('TFrame', background=BG_COLOR)
 
         self.root = tk.Tk()
         self.root.title("Token Ring")
         self.root.geometry('1200x500') 
         self.root.configure(bg=BG_COLOR)
+
+        self.style = ttk.Style()
+        self.style.configure('TLabel', background=BG_COLOR, foreground=FG_COLOR)
+        self.style.configure('TEntry', background=BG_COLOR, foreground=FG_COLOR)
+        self.style.configure('TButton', background=BUTTON_BG, foreground=FG_COLOR)
+        self.style.configure('TFrame', background=BG_COLOR)
 
         self.frame_logs = ttk.Frame(self.root, padding="3")
         self.frame_logs.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
