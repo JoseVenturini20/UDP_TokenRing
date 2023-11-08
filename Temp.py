@@ -34,7 +34,7 @@ class Temp:
         else:
             if self.__callback:
                 self.__callback()
-            self.__seconds = self.__init_seconds  # Reset the timer
+            self.__seconds = self.__init_seconds 
 
         self.__thread = None
 
@@ -59,12 +59,10 @@ class Temp:
         if self.__thread and self.__thread.is_alive():
             self.__stop_event.set()
             self.__thread.join()
-        self.__seconds = self.__init_seconds  # Reset the timer here as well
+        self.__seconds = self.__init_seconds 
         print(f"Timer reset. Seconds now: {self.__seconds}")
         self.__thread = None
         self.__stop_event.clear()
-        # if self.__update_callback:
-        #         self.__update_callback(f"{self.__text} ---", self)
 
 
     def is_running(self):

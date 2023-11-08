@@ -77,7 +77,6 @@ class DisplayManager:
         self.button_send.pack(fill='x')
 
         self.corrupt_message_var = tk.BooleanVar(value=False, name="Var")
-
         self.checkbox_corrupt_message = ttk.Checkbutton(
             self.frame_controls, 
             text="Corromper mensagem", 
@@ -85,16 +84,17 @@ class DisplayManager:
             style='TCheckbutton',
         )
         self.checkbox_corrupt_message.setvar("Var", True)
-
         self.checkbox_corrupt_message.pack(fill='x')
 
+
+        self.block_token_var = tk.BooleanVar(value=False, name="VarBlock")
         self.checkbox_block_token = ttk.Checkbutton(
             self.frame_controls, 
             text="Bloquear token", 
-            variable=self.corrupt_message_var, 
+            variable=self.block_token_var, 
             style='TCheckbutton',
         )
-
+        self.checkbox_block_token.setvar("VarBlock", True)
         self.checkbox_block_token.pack(fill='x')
 
         self.label_token_status = ttk.Label(self.frame_controls, text="Token Holder: False")
@@ -156,7 +156,7 @@ class TokenRing:
         display_manager.root.bind("<<SendMessage>>", self.send_message_event)
         self.__queue = queue.Queue()
         self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
-        self.__temp_token_management_multiple_tokens = Temp(2, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
+        self.__temp_token_management_multiple_tokens = Temp(5, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
         self.__temp_with_token = Temp(self.__token_time, alignment=0, text='Token: ', update_callback=self.display_manager.update_status)
         self.__token_holder_flag = False
         self.__ack_event_thread = None
@@ -204,7 +204,6 @@ class TokenRing:
         def multiple_tokens():
             remove_token()
         
-        self.display_manager.update_logs(self.__temp_token_management_multiple_tokens.is_running())
         if self.__temp_token_management_multiple_tokens.is_running():
             multiple_tokens()
         else: 
@@ -301,7 +300,8 @@ class TokenRing:
         if (self.__token):
             self.__temp_token_management_timeout.start(callback=self.__send_token)
             self.__temp_token_management_multiple_tokens.start()
-        self.__send(b'9000')
+        if(self.display_manager.checkbox_block_token.getvar("VarBlock")=="0"):
+            self.__send(b'9000')
 
     def __enqueue_message(self, message):
         self.__queue.put(message)
@@ -324,8 +324,7 @@ class TokenRing:
         destination = msg[2]
         crc = msg[3]
         msg_content = msg[4]
-        if self.display_manager.checkbox_corrupt_message.getvar("Var"):
-            msg_content= self.introduce_error(msg_content)
+        msg_content= self.introduce_error(msg_content)
         data = '7777:naoexiste;{};{};{};{}'.format(origin, destination, crc, msg_content).encode('utf-8')
         return data
     
@@ -339,8 +338,8 @@ class TokenRing:
         self.__enqueue_message(msg.encode('utf-8'))
 
     def introduce_error(self, message, error_count=1):
-        probability = 0.25
-        if random.random() > probability:
+        probability = 0.15
+        if (random.random() > probability) and (self.display_manager.checkbox_corrupt_message.getvar("Var")=="0"):
             return message
         else:
             self.display_manager.update_logs(f'Corrupting message {message}')
