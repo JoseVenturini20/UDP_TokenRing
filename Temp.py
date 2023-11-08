@@ -58,7 +58,7 @@ class Temp:
         print(f"Stopping timer. Initial seconds: {self.__init_seconds}")
         if self.__thread and self.__thread.is_alive():
             self.__stop_event.set()
-            self.__thread.join()
+           #self.__thread.join()
         self.__seconds = self.__init_seconds 
         print(f"Timer reset. Seconds now: {self.__seconds}")
         self.__thread = None
