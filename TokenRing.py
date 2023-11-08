@@ -37,7 +37,7 @@ class DisplayManager:
 
         self.root = tk.Tk()
         self.root.title("Token Ring")
-        self.root.geometry('1200x450') 
+        self.root.geometry('1200x500') 
         self.root.configure(bg=BG_COLOR)
 
         self.frame_logs = ttk.Frame(self.root, padding="3")
@@ -97,6 +97,9 @@ class DisplayManager:
         self.checkbox_block_token.setvar("VarBlock", True)
         self.checkbox_block_token.pack(fill='x')
 
+        self.button_send_token = ttk.Button(self.frame_controls, text="Enviar token", command=self.send_token_next)
+        self.button_send_token.pack(fill='x')
+
         self.label_token_status = ttk.Label(self.frame_controls, text="Token Holder: False")
         self.label_token_status.pack(fill='x')
 
@@ -118,6 +121,8 @@ class DisplayManager:
         if destination and message:
             self.root.event_generate("<<SendMessage>>", when="tail") 
 
+    def send_token_next(self):
+        self.root.event_generate("<<SendToken>>", when="tail")
 
     def update_status(self, message, temp_instance):
         split_message = message.split(' ')
@@ -154,6 +159,7 @@ class TokenRing:
         threading.Thread(target=self.__receive_data).start()
         self.__configure()
         display_manager.root.bind("<<SendMessage>>", self.send_message_event)
+        display_manager.root.bind("<<SendToken>>", self.send_token_next)
         self.__queue = queue.Queue()
         self.__temp_token_management_timeout = Temp(10, alignment=0, text='Timeout: ', update_callback=self.display_manager.update_status)
         self.__temp_token_management_multiple_tokens = Temp(5, alignment=0, text='Multiple tokens: ', update_callback=self.display_manager.update_status)
@@ -174,6 +180,9 @@ class TokenRing:
             self.send_message(message, destination)
             self.display_manager.input_send_message.delete(0, tk.END)
             self.display_manager.input_message.delete(0, tk.END) 
+    
+    def send_token_next(self, event=None):
+        self.__send_token()
 
     def __receive_data(self):
         while True:
