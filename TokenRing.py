@@ -251,10 +251,14 @@ class TokenRing:
                     
                 elif (ack.lower() =='naoexiste'):
                     self.__ack_event.set()
-                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
+                    if (destination.lower() == 'todos'): 
+                        self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for everyone removed {msg}')
+                        self.__send(data.encode('utf-8'))
+                    else:
+                        self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                 elif (ack.lower() == 'ack'):
                     self.__ack_event.set()
-                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message acknowledged {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message acknowledged {msg}'))
             elif(destination == self.__my_nickname):
                 if(self.__check_crc(msg_content, int(crc))):
                     self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for me {msg}')
