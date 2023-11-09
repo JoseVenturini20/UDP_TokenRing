@@ -258,7 +258,7 @@ class TokenRing:
                         self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                 elif (ack.lower() == 'ack'):
                     self.__ack_event.set()
-                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message acknowledged {msg}'))
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message acknowledged {msg}')
             elif(destination == self.__my_nickname):
                 if(self.__check_crc(msg_content, int(crc))):
                     self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for me {msg}')
