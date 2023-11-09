@@ -235,11 +235,14 @@ class TokenRing:
             crc = msg[3]
             msg_content = msg[4]
             if (destination.lower() == 'todos'):
-                self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for everyone {msg}')
-                self.__send(data.encode('utf-8'))
+                if (origin == self.__my_nickname):
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for everyone removed {msg}')
+                else:
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for everyone {msg}')
+                    self.__send(data.encode('utf-8'))
             elif (origin == self.__my_nickname):
                 if (ack.lower() == 'nack'):
-                    if (self.__retries == 2): 
+                    if (self.__retries == 1): 
                         self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] ALL RETRIES FAIL {msg}')
                         self.__retries = 0
                         return
@@ -247,15 +250,11 @@ class TokenRing:
                     self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                     print(self.__last_message)
                     self.__enqueue_message_first(self.__last_message)
-                    __retries += 1
+                    self.__retries += 1
                     
                 elif (ack.lower() =='naoexiste'):
                     self.__ack_event.set()
-                    if (destination.lower() == 'todos'): 
-                        self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message for everyone removed {msg}')
-                        self.__send(data.encode('utf-8'))
-                    else:
-                        self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
+                    self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message not acknowledged {msg}')
                 elif (ack.lower() == 'ack'):
                     self.__ack_event.set()
                     self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Message acknowledged {msg}')
