@@ -7,10 +7,19 @@ import queue
 import tkinter as tk
 from tkinter import END, ttk
 class DisplayManager:
+    """
+    A class that manages the graphical user interface of the Token Ring program.
+    """
     def start_gui_loop(self):
+        """
+        Starts the GUI loop.
+        """
         self.root.mainloop()
 
     class TextRedirector(object):
+        """
+        A class that redirects the standard output to a text widget.
+        """
         def __init__(self, widget):
             self.widget = widget
 
@@ -24,6 +33,9 @@ class DisplayManager:
             pass
 
     def __init__(self):
+        """
+        Initializes the DisplayManager object and sets up the GUI.
+        """
         BG_COLOR = "#333333"
         FG_COLOR = "#CCCCCC"
         LOG_BG = "#222222"
@@ -117,15 +129,24 @@ class DisplayManager:
 
 
     def send_button_clicked(self):
+        """
+        Sends a message to the specified destination.
+        """
         destination = self.input_send_message.get()  
         message = self.input_message.get() 
         if destination and message:
             self.root.event_generate("<<SendMessage>>", when="tail") 
 
     def send_token_next(self):
+        """
+        Sends the token to the next node in the ring.
+        """
         self.root.event_generate("<<SendToken>>", when="tail")
 
     def update_status(self, message, temp_instance):
+        """
+        Updates the status label with the specified message.
+        """
         split_message = message.split(' ')
         if(split_message[0] == 'Timeout:'):
             self.label_token_manager_timeout.config(text=message)
@@ -133,28 +154,57 @@ class DisplayManager:
             self.label_token_manager_multi.config(text=message)
         else:
             self.label_token_manager.config(text=message)
+
     def update_token_holder(self, message, temp_instance):
+        """
+        Updates the token holder label with the specified message.
+        """
         self.label_token_status.config(text=message)
+
     def update_queue_add_first(self, message):
+        """
+        Adds a message to the beginning of the queue.
+        """
         message = f'{message}\n'
         self.queue_msg.insert(1.0, message)
         self.queue_msg.see(END)
+
     def update_queue(self, message):
+        """
+        Adds a message to the end of the queue.
+        """
         message = f'{message}\n'
         self.queue_msg.insert(END, message)
         self.queue_msg.see(END)
+
     def update_queue_remove_first(self):
+        """
+        Removes the first message from the queue.
+        """
         self.queue_msg.delete(1.0, 2.0)
+
     def update_logs(self, message):
+        """
+        Adds a message to the logs.
+        """
         message = f'{message}\n'
         self.text_widget.insert(END, message)
         self.text_widget.see(END)
 
     def refresh_display(self):
+        """
+        Refreshes the display.
+        """
         pass
 
 class TokenRing:
+    """
+    Class that represents a Token Ring network node.
+    """
     def __init__(self, display_manager):
+        """
+        Initializes a TokenRing object.
+        """
         self.display_manager = display_manager
         self.__UDPSocket = UDPSocket(5000)
         threading.Thread(target=self.__receive_data).start()
@@ -174,8 +224,15 @@ class TokenRing:
             self.__temp_with_token.start(self.__send_token)
 
     def start(self):
+        """
+        Starts the TokenRing object.
+        """
         threading.Thread(target=self.__receive_data).start()
+
     def send_message_event(self, event=None):
+        """
+        Sends a message to a destination.
+        """
         destination = self.display_manager.input_send_message.get()
         message = self.display_manager.input_message.get()
         if destination and message:
@@ -184,9 +241,15 @@ class TokenRing:
             self.display_manager.input_message.delete(0, tk.END) 
     
     def send_token_next(self, event=None):
+        """
+        Sends the token to the next node in the network.
+        """
         self.__send_token()
 
     def __receive_data(self):
+        """
+        Receives data from the network.
+        """
         while True:
             data = self.__UDPSocket.recv()
             self.display_manager.update_logs(f'[RECEBIMENTO DE MENSAGEM] Received data {data}')
@@ -196,6 +259,9 @@ class TokenRing:
                 self.display_manager.update_logs('[RECEBIMENTO DE MENSAGEM] No data received]')
     
     def __configure(self):
+        """
+        Configures the TokenRing object.
+        """
         with open('config.txt', 'r') as file:
             data = file.readlines()
             self.__right_ip = data[0].split(':')[0].strip()
@@ -205,6 +271,9 @@ class TokenRing:
             self.__token = data[3].strip() == 'true'
 
     def __control_token(self):
+        """
+        Controls the token.
+        """
         def remove_token():
             self.display_manager.update_logs('[TOKEN MANAGEMENT] Removing token')
 
@@ -221,6 +290,9 @@ class TokenRing:
             self.__is_token_holder = True
 
     def __decode_data(self, data):
+        """
+        Decodes the received data.
+        """
         if data == '9000':
             if (self.__token):
                 self.__control_token()
@@ -270,25 +342,40 @@ class TokenRing:
                 self.__send(data.encode('utf-8'))
 
     def __calculate_crc(self, data):
+        """
+        Calculates the CRC of the data.
+        """
         if isinstance(data, str):
             data = data.encode('utf-8')
         return zlib.crc32(data)
 
     def __check_crc(self, data, expected_crc):
+        """
+        Checks if the calculated CRC matches the expected CRC.
+        """
         calculated_crc = self.__calculate_crc(data)
         return calculated_crc == expected_crc
 
     def __wait_for_acknowledgement(self):
+        """
+        Waits for an acknowledgement.
+        """
         self.__ack_event.wait()
         # self.__last_message = None
         self.__ack_event.clear()
 
     @property
     def __is_token_holder(self):
+        """
+        Gets the token holder flag.
+        """
         return self.__token_holder_flag
 
     @__is_token_holder.setter
     def __is_token_holder(self, value):
+        """
+        Sets the token holder flag.
+        """
         self.display_manager.update_token_holder('Token Holder: {}'.format(value), self.__temp_token_management_timeout)
         if value and not self.__token_holder_flag: 
             self.display_manager.update_logs('[TOKEN MANAGEMENT] I am the token holder')
@@ -304,6 +391,9 @@ class TokenRing:
             self.__token_holder_flag = value
 
     def __send_message_when_token_holder(self):
+        """
+        Sends a message when the machine is the token holder.
+        """
         if not self.__queue.empty():
             msg = self.__dequeue_message()
             self.display_manager.update_logs('[ENVIO DE MENSAGEM] Sending message {}'.format(msg))
@@ -315,6 +405,9 @@ class TokenRing:
             self.__temp_with_token.start(self.__send_token)
 
     def __send_token(self):
+        """
+        Sends the token to the next machine in the network.
+        """
         self.__is_token_holder = False
         if (self.__token):
             self.__temp_token_management_timeout.stop()
@@ -327,9 +420,16 @@ class TokenRing:
             self.__send(b'9000')
 
     def __enqueue_message(self, message):
+        """
+        Enqueues a message.
+        """
         self.__queue.put(message)
         self.display_manager.update_queue(message)
+
     def __enqueue_message_first(self, message):
+        """
+        Enqueues a message at the beginning of the queue.
+        """
         temp_queue = queue.Queue()
         temp_queue.put(message)
         while not self.__queue.empty():
@@ -338,6 +438,9 @@ class TokenRing:
         self.display_manager.update_queue_add_first(message)
 
     def __dequeue_message(self):
+        """
+        Dequeues a message.
+        """
         self.display_manager.update_queue_remove_first()
         data = self.__queue.get()
         self.__last_message = data
@@ -352,15 +455,24 @@ class TokenRing:
         return data
     
     def __send(self, data):
+        """
+        Sends data to the network.
+        """
         self.display_manager.update_logs(f'[ENVIO NO SOCKET] Sending data {data}')
         self.__UDPSocket.send(data, (self.__right_ip, self.__right_port))
 
     def send_message(self, message, nickname = 'TODOS'):
+        """
+        Sends a message to a destination.
+        """
         message_send = message
         msg = '7777:naoexiste;{};{};{};{}'.format(self.__my_nickname, nickname, self.__calculate_crc(message), message_send)
         self.__enqueue_message(msg.encode('utf-8'))
 
     def introduce_error(self, message, error_count=1):
+        """
+        Introduces errors in the message.
+        """
         probability = 0.15
         if (random.random() > probability) and (self.display_manager.checkbox_corrupt_message.getvar("Var")=="0"):
             return message

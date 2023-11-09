@@ -6,7 +6,15 @@ import platform
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
+import threading
+import os
+import platform
+import time
+
 class Temp:
+    """
+    A timer class that counts down from a specified number of seconds.
+    """
     def __init__(self, seconds, alignment=10, text="", update_callback=None):
         self.__init_seconds = seconds
         self.__seconds = seconds
@@ -42,6 +50,9 @@ class Temp:
         os.system('cls' if platform.system() == 'Windows' else 'clear')
 
     def start(self, callback=None):
+        """
+        Starts the timer. If the timer is already running, it will be stopped and restarted.
+        """
         self.__callback = callback
         self.__seconds = self.__init_seconds
         self.__stop_event.clear()
@@ -55,6 +66,9 @@ class Temp:
 
 
     def stop(self):
+        """
+        Stops the timer and resets the remaining seconds to the initial value.
+        """
         print(f"Stopping timer. Initial seconds: {self.__init_seconds}")
         self.__seconds = self.__init_seconds 
         print(f"Timer reset. Seconds now: {self.__seconds}")
@@ -63,9 +77,15 @@ class Temp:
 
 
     def is_running(self):
+        """
+        Returns True if the timer is currently running, False otherwise.
+        """
         return self.__thread is not None and self.__thread.is_alive()
 
     @property
     def seconds(self):
+        """
+        Returns the number of seconds remaining in the timer.
+        """
         return self.__seconds
 
